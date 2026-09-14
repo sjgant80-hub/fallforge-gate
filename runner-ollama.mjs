@@ -20,15 +20,31 @@ const v = validEvalSet(evalSet);
 if (!v.ok) { console.error('eval set refused: ' + v.why); process.exit(1); }
 
 async function ask(model, prompt) {
+  // streamed: a slow model's first token can be minutes away, and undici's headers timeout
+  // kills a non-streaming call at 5 minutes — chunks keep the wire warm instead
   const t0 = Date.now();
   const res = await fetch(OLLAMA + '/api/generate', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model, prompt, stream: false, options: { temperature: 0, num_predict: 200 } }),
+    body: JSON.stringify({ model, prompt, stream: true, options: { temperature: 0, num_predict: 200 } }),
   });
   if (!res.ok) throw new Error(model + ' refused: HTTP ' + res.status);
-  const j = await res.json();
-  return { output: String(j.response || ''), ms: Date.now() - t0 };
+  let out = '', buf = '';
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      try { const j = JSON.parse(line); if (j.response) out += j.response; } catch (e) {}
+    }
+  }
+  return { output: out, ms: Date.now() - t0 };
 }
 
 async function runSide(model) {
