@@ -1,0 +1,23 @@
+name: gate
+on: [push, pull_request]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: tests
+        run: node --test kernel.test.mjs
+      - name: mutation gate — kernel.mjs must be CLEAN
+        run: |
+          node tools/witness.mjs mutate kernel.mjs --timeout 30000 --cap 500 --test node --test kernel.test.mjs | tee gate.out || true
+          node -e "const b=require('fs').readFileSync('gate.out','utf8');const j=JSON.parse(b.slice(b.indexOf('{'),b.lastIndexOf('}')+1));if(j.clean!==true){console.error('GATE NOT CLEAN');process.exit(1)}console.log('CLEAN '+j.killed+'/'+j.total)"
+      - name: the shipped receipt must verify against the shipped kernel
+        run: |
+          node -e "import('./kernel.mjs').then((k)=>{const r=JSON.parse(require('fs').readFileSync('receipt.json','utf8'));const v=k.verifyReceipt(r);if(!v.ok||v.valid!==true){console.error('RECEIPT INVALID: '+v.why);process.exit(1)}console.log('receipt intact: '+r.verdict+' · '+r.candidate.model+' vs '+r.baseline.model)})"
+      - name: page fixpoint — the live logic IS the gated kernel
+        run: |
+          node make-page.mjs
+          git diff --exit-code index.html
