@@ -1,5 +1,12 @@
 # FallForge Gate
 
+> **Superseded, not deleted.** This repo's proof-of-play logic (deterministic scoring, no LLM
+> judge, a verdict that can say LOSES) has been absorbed into
+> [fallforgemint](https://github.com/sjgant80-hub/fallforgemint)'s own kernel — the current, live
+> mint pipeline gates every candidate the same way this repo pioneered. This page stays live and
+> gated as a historical record of layer 1 of the original sovereign-node factory; new work happens
+> in fallforgemint and the converging [fallforge](https://github.com/sjgant80-hub/fallforge) hub.
+
 **LIVE: https://sjgant80-hub.github.io/fallforge-gate/**
 
 Proof-of-play for small language models — layer 1 of the sovereign-node factory.
